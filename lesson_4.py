@@ -38,12 +38,18 @@ class Boss(GameEntity):
     def __init__(self, name, health, damage):
         super().__init__(name, health, damage)
         self.__defence = None
+        self.stunned = False
 
     def choose_defence(self, heroes):
         hero = choice(heroes)
         self.__defence = hero.ability
 
     def attack(self, heroes):
+        if self.stunned:
+            print(f'{self.name} is stunned and misses a turn!')
+            self.stunned = False
+            return
+
         for hero in heroes:
             if hero.health > 0:
                 if type(hero) == Berserk and self.__defence != hero.ability:
@@ -91,10 +97,11 @@ class Magic(Hero):
         super().__init__(name, health, damage, 'BOOST')
 
     def apply_super_power(self, boss, heroes):
-        pass
-        # TODO Here will be implementation of BOOSTING
-
-
+        boost = randint(1,15)
+        for hero in heroes:
+            if hero.health > 0 and self != hero:
+                hero.damage += boost
+                print(f'Wizard {self.name} boosted the damage by {boost} to {hero.name}')
 class Berserk(Hero):
     def __init__(self, name, health, damage):
         super().__init__(name, health, damage, 'BLOCK_DAMAGE_AND_REVERT')
@@ -122,6 +129,77 @@ class Medic(Hero):
         for hero in heroes:
             if hero.health > 0 and self != hero:
                 hero.health += self.__heal_points
+
+class Witcher(Hero):
+    def __init__(self, name,health, damage=0):
+        super().__init__(name, health, damage, 'SACRIFICE')
+        self.__has_sacrificed = False
+
+    def apply_super_power(self, boss, heroes):
+        if self.__has_sacrificed:
+            return
+
+        for hero in heroes:
+            if hero.health <= 0:
+                print(f'Witcher {self.name} sacrificed himself to revive {hero.name}')
+                hero.health = self.health
+                self.health = 0
+                self.__has_sacrificed = True
+                break
+
+class Hacker(Hero):
+    def __init__(self,name, health,damage):
+        super().__init__(name, health, damage, 'TREATMENT_FROM_THE_BOSS_TO_THE_HERO')
+        self.__round_counter = 0
+
+    def apply_super_power(self, boss, heroes):
+        self.__round_counter += 1
+
+        if self.__round_counter % 2 == 0:
+            stolen_health = randint(50, 150)
+            boss.health -= stolen_health
+            if boss.health < 0:
+                boss.health = 0
+
+            heroes_ = [hero for hero in heroes if hero.health >0 and hero != self]
+            if heroes_:
+                chosen_hero = choice(heroes_)
+                chosen_hero.health += stolen_health
+                print(f'Hacker {self.name} stole {stolen_health} HP from the boss and heal {chosen_hero.name} ')
+
+class Thor(Hero):
+    def __init__(self,name,health,damage):
+        super().__init__(name,health,damage, 'STUN')
+        self.__stun_chance = 0.3
+
+    def apply_super_power(self, boss, heroes):
+        if randint (1,100) <= self.__stun_chance * 100:
+            boss.stunned = True
+            print(f'{self.name} stunned the boss for 1 turn!')
+        else:
+            print(f'{self.name} missed the stun')
+
+class Saitama(Hero):
+    def __init__(self,name,health,damage):
+        super().__init__(name,health,damage, 'ONE_PUNCH')
+
+    def apply_super_power(self, boss, heroes):
+        boss.health = 0
+        print(f'{self.name} destroys the {boss.name} with ONE PUNCH! ')
+
+class King(Hero):
+    def __init__(self, name, health, damage=0):
+        super().__init__(name,health,damage,'SAITAMA')
+        self.__saitama_chance = 0.1
+
+    def apply_super_power(self, boss, heroes):
+        if randint(1,100) <= self.__saitama_chance * 100:
+            saitama = Saitama(name='Saitama', health=1000, damage=10000)
+            print(f'King {self.name} summoned Saitama!')
+            saitama.apply_super_power(boss,heroes)
+        else:
+            print(f'King {self.name} failed to summon Saitama')
+
 
 
 round_number = 0
@@ -162,14 +240,18 @@ def is_game_over(boss, heroes):
 
 
 def start_game():
-    boss = Boss(name='Dragon', health=1000, damage=50)
-    warrior_1 = Warrior(name='Mario', health=270, damage=10)
+    boss = Boss(name='Dragon', health=3000, damage=50)
+    warrior_1 = Warrior(name='Mario', health=100, damage=10)
     warrior_2 = Warrior(name='Ben', health=280, damage=15)
     magic = Magic(name='Merlin', health=290, damage=10)
     berserk = Berserk(name='Guts', health=260, damage=5)
     doc = Medic(name='Aibolit', health=250, damage=5, heal_points=15)
     assistant = Medic(name='Kristin', health=300, damage=5, heal_points=5)
-    heroes_list = [warrior_1, doc, warrior_2, magic, berserk, assistant]
+    witcher = Witcher(name='Dura4ok', health=200)
+    hacker = Hacker(name='Snowden', health=1000, damage=0)
+    thor = Thor(name='Thor', health=250, damage=50)
+    king = King(name='Arthur', health=300)
+    heroes_list = [warrior_1, magic,doc,king ,warrior_2, hacker, thor, witcher, berserk, assistant]
 
     show_statistics(boss, heroes_list)
     while not is_game_over(boss, heroes_list):
